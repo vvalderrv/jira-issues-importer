@@ -3,7 +3,6 @@ from html.entities import name2codepoint
 from dateutil.parser import parse
 import re
 
-
 class Project:
 
     def __init__(self, name, doneStatusCategoryId):
@@ -83,7 +82,7 @@ class Project:
 
         self._project['Issues'].append({'title': item.title.text[item.title.text.index("]") + 2:len(item.title.text)],
                                         'key': item.key.text,
-                                        'body': self._htmlentitydecode(item.description.text) + '\n<i>' + item.title.text[0:item.title.text.index("]") + 1] + ' created by ' + item.reporter.get('username') + '</i>',
+                                        'body': self._htmlentitydecode(item.description.text) + '\n<i>' + item.title.text + ' created by ' + item.reporter + '</i>',
                                         'created_at': self._convert_to_iso(item.created.text),
                                         'closed_at': closed_at,
                                         'updated_at': self._convert_to_iso(item.updated.text),
@@ -107,27 +106,39 @@ class Project:
         try:
             self._project['Milestones'][item.fixVersion.text] += 1
             # this prop will be deleted later:
-            self._project['Issues'][-1]['milestone_name'] = item.fixVersion.text
+            self._project['Issues'][-1]['milestone_name'] = item.fixVersion.text.trim()
         except AttributeError:
             pass
 
     def _add_labels(self, item):
         try:
             self._project['Components'][item.component.text] += 1
-            self._project['Issues'][-1]['labels'].append(item.component.text)
+            tmp_l = item.component.text.trim()
+            if tmp_l == 'Bug':
+                tmp_l = 'bug'
+
+            self._project['Issues'][-1]['labels'].append(tmp_l)
         except AttributeError:
             pass
         
         try:
             for label in item.labels.label:
                 self._project['Labels'][label.text] += 1
-                self._project['Issues'][-1]['labels'].append(label.text)
+                tmp_l = label.text.trim()
+                if tmp_l == 'Bug':
+                    tmp_l = 'bug'
+
+                self._project['Issues'][-1]['labels'].append(tmp_l)
         except AttributeError:
             pass
 
         try:
             self._project['Types'][item.type.text] += 1
-            self._project['Issues'][-1]['labels'].append(item.type.text)
+            tmp_l = item.type.text.trim()
+            if tmp_l == 'Bug':
+                tmp_l = 'bug'
+
+            self._project['Issues'][-1]['labels'].append(tmp_l)
         except AttributeError:
             pass
 
@@ -147,23 +158,25 @@ class Project:
                 for outwardlink in issuelinktype.outwardlinks:
                     for issuelink in outwardlink.issuelink:
                         for issuekey in issuelink.issuekey:
-                            self._project['Issues'][-1][outwardlink.get(
-                                "description").replace(' ', '-')].append(issuekey.text)
+                            tmp_outward = outwardlink.get("description").replace(' ', '-')
+                            if tmp_outward in self._project['Issues'][-1]:
+                                self._project['Issues'][-1][tmp_outward].append(issuekey.text)
         except AttributeError:
             pass
         except KeyError:
-            print('KeyError at ' + item.key.text)
+            print('1. KeyError at ' + item.key.text)
         try:
             for issuelinktype in item.issuelinks.issuelinktype:
                 for inwardlink in issuelinktype.inwardlinks:
                     for issuelink in inwardlink.issuelink:
                         for issuekey in issuelink.issuekey:
-                            self._project['Issues'][-1][inwardlink.get(
-                                "description").replace(' ', '-')].append(issuekey.text)
+                            tmp_inward = inwardlink.get("description").replace(' ', '-')
+                            if tmp_inward in self._project['Issues'][-1]:
+                                self._project['Issues'][-1][tmp_inward].append(issuekey.text)
         except AttributeError:
             pass
         except KeyError:
-            print('KeyError at ' + item.key.text)
+            print('2. KeyError at ' + item.key.text)
 
     def _htmlentitydecode(self, s):
         if s is None:

@@ -43,10 +43,14 @@ class Importer:
         ms = get_milestone_list(milestone_url + '?state=all')
         milestone_pages.append(ms.json())
 
-        links = ms.headers['Link'].split(',')
-        nextPageUrl = get_next_page_url(links[0])
+        links = None
+        nextPageUrl = None
 
-        while nextPageUrl != None:
+        if links is not None:
+            ms.headers['Link'].split(',')
+            nextPageUrl = get_next_page_url(links[0])
+
+        while nextPageUrl is not None:
             time.sleep(1)
             nextPageUrl = None
 
@@ -54,7 +58,7 @@ class Importer:
                 if 'rel="next"' in l:
                     nextPageUrl = get_next_page_url(l)
 
-            if nextPageUrl != None:
+            if nextPageUrl is not None:
                 ms = get_milestone_list(nextPageUrl)
                 links = ms.headers['Link'].split(',')
                 milestone_pages.append(ms.json())
@@ -85,7 +89,7 @@ class Importer:
 
     def import_labels(self, colourSelector):
         """
-        Imports the gathered project components and labels as labels into GitHub 
+        Imports the gathered project components and labels as labels into GitHub
         """
         label_url = self.github_url + '/labels'
         print('Importing labels...', label_url)
@@ -107,8 +111,8 @@ class Importer:
         Starts the issue import into GitHub:
         First the milestone id is captured for the issue.
         Then JIRA issue relationships are converted into comments.
-        After that, the comments are taken out of the issue and 
-        references to JIRA issues in comments are replaced with a placeholder    
+        After that, the comments are taken out of the issue and
+        references to JIRA issues in comments are replaced with a placeholder
         """
         print('Importing issues...')
 
@@ -146,7 +150,7 @@ class Importer:
         This is a two-step process:
         First the issue with the comments is pushed to GitHub asynchronously.
         Then GitHub is pulled in a loop until the issue import is completed.
-        Finally the issue github is noted.    
+        Finally the issue github is noted.
         """
         print('Issue ', issue['key'])
         jiraKey = issue['key']
