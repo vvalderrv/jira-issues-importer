@@ -46,14 +46,11 @@ class Importer:
         ms = get_milestone_list(milestone_url + '?state=all')
         milestone_pages.append(ms.json())
 
-        links = None
-        nextPageUrl = None
-
-        if links is not None:
-            ms.headers['Link'].split(',')
+        if 'Link' in ms.headers:
+            links = ms.headers['Link'].split(',')
             nextPageUrl = get_next_page_url(links[0])
 
-        while nextPageUrl is not None:
+            while nextPageUrl is not None:
             time.sleep(1)
             nextPageUrl = None
 
