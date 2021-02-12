@@ -55,4 +55,4 @@ if int(start_from_issue) == 0:
     importer.import_labels(colourSelector)
 
 importer.import_issues(int(start_from_issue))
-importer.post_process_comments()
+# importer.post_process_comments()

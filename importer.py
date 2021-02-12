@@ -5,9 +5,9 @@ import re
 
 
 class Importer:
-    _GITHUB_ISSUE_PREFIX = "GH-"
-    _PLACEHOLDER_PREFIX = "@PSTART"
-    _PLACEHOLDER_SUFFIX = "@PEND"
+    # _GITHUB_ISSUE_PREFIX = "GH-"
+    # _PLACEHOLDER_PREFIX = "@PSTART"
+    # _PLACEHOLDER_SUFFIX = "@PEND"
     _DEFAULT_TIME_OUT = 120.0
 
     def __init__(self, options, project):
@@ -15,10 +15,10 @@ class Importer:
         self.project = project
         self.github_url = 'https://api.github.com/repos/%s/%s' % (
             self.options.account, self.options.repo)
-        self.jira_issue_replace_patterns = {
-            'https://java.net/jira/browse/%s%s' % (self.project.name, r'-(\d+)'): r'\1',
-            self.project.name + r'-(\d+)': Importer._GITHUB_ISSUE_PREFIX + r'\1',
-            r'Issue (\d+)': Importer._GITHUB_ISSUE_PREFIX + r'\1'}
+        # self.jira_issue_replace_patterns = {
+        #     'https://java.net/jira/browse/%s%s' % (self.project.name, r'-(\d+)'): r'\1',
+        #     self.project.name + r'-(\d+)': Importer._GITHUB_ISSUE_PREFIX + r'\1',
+        #     r'Issue (\d+)': Importer._GITHUB_ISSUE_PREFIX + r'\1'}
         self.headers = {
             'Accept': 'application/vnd.github.golden-comet-preview+json',
             'Authorization': f'token {options.accesstoken}'
@@ -257,57 +257,57 @@ class Importer:
 
     def _replace_jira_with_github_id(self, text):
         result = text
-        for pattern, replacement in self.jira_issue_replace_patterns.items():
-            result = re.sub(pattern, Importer._PLACEHOLDER_PREFIX +
-                            replacement + Importer._PLACEHOLDER_SUFFIX, result)
+        # for pattern, replacement in self.jira_issue_replace_patterns.items():
+        #     result = re.sub(pattern, Importer._PLACEHOLDER_PREFIX +
+        #                     replacement + Importer._PLACEHOLDER_SUFFIX, result)
         return result
 
-    def post_process_comments(self):
-        """
-        Starts post-processing all issue comments.
-        """
-        comment_url = self.github_url + '/issues/comments'
-        self._post_process_comments(comment_url)
+    # def post_process_comments(self):
+    #     """
+    #     Starts post-processing all issue comments.
+    #     """
+    #     comment_url = self.github_url + '/issues/comments'
+    #     self._post_process_comments(comment_url)
 
-    def _post_process_comments(self, url):
-        """
-        Paginates through all issue comments and replaces the issue id placeholders with the correct issue ids.
-        """
-        print("listing comments using " + url)
-        response = requests.get(url, headers=self.headers,
-            timeout=Importer._DEFAULT_TIME_OUT)
-        if response.status_code != 200:
-            raise RuntimeError(
-                "Failed to list all comments due to unexpected HTTP status code: {}".format(
-                    response.status_code)
-            )
+    # def _post_process_comments(self, url):
+    #     """
+    #     Paginates through all issue comments and replaces the issue id placeholders with the correct issue ids.
+    #     """
+    #     print("listing comments using " + url)
+    #     response = requests.get(url, headers=self.headers,
+    #         timeout=Importer._DEFAULT_TIME_OUT)
+    #     if response.status_code != 200:
+    #         raise RuntimeError(
+    #             "Failed to list all comments due to unexpected HTTP status code: {}".format(
+    #                 response.status_code)
+    #         )
 
-        comments = response.json()
-        for comment in comments:
-            print("handling comment " + comment['url'])
-            body = comment['body']
-            if Importer._PLACEHOLDER_PREFIX in body:
-                newbody = self._replace_github_id_placholder(body)
-                self._patch_comment(comment['url'], newbody)
-        try:
-            next_comments = response.links["next"]
-            if next_comments:
-                next_url = next_comments['url']
-                self._post_process_comments(next_url)
-        except KeyError:
-            print('no more pages for comments: ')
-            for key, value in response.links.items():
-                print(key)
-                print(value)
+    #     comments = response.json()
+    #     for comment in comments:
+    #         print("handling comment " + comment['url'])
+    #         body = comment['body']
+    #         if Importer._PLACEHOLDER_PREFIX in body:
+    #             newbody = self._replace_github_id_placholder(body)
+    #             self._patch_comment(comment['url'], newbody)
+    #     try:
+    #         next_comments = response.links["next"]
+    #         if next_comments:
+    #             next_url = next_comments['url']
+    #             self._post_process_comments(next_url)
+    #     except KeyError:
+    #         print('no more pages for comments: ')
+    #         for key, value in response.links.items():
+    #             print(key)
+    #             print(value)
 
     def _replace_github_id_placholder(self, text):
         result = text
-        pattern = Importer._PLACEHOLDER_PREFIX + Importer._GITHUB_ISSUE_PREFIX + \
-            r'(\d+)' + Importer._PLACEHOLDER_SUFFIX
-        result = re.sub(pattern, Importer._GITHUB_ISSUE_PREFIX + r'\1', result)
-        pattern = Importer._PLACEHOLDER_PREFIX + \
-            r'(\d+)' + Importer._PLACEHOLDER_SUFFIX
-        result = re.sub(pattern, r'\1', result)
+        # pattern = Importer._PLACEHOLDER_PREFIX + Importer._GITHUB_ISSUE_PREFIX + \
+        #     r'(\d+)' + Importer._PLACEHOLDER_SUFFIX
+        # result = re.sub(pattern, Importer._GITHUB_ISSUE_PREFIX + r'\1', result)
+        # pattern = Importer._PLACEHOLDER_PREFIX + \
+        #     r'(\d+)' + Importer._PLACEHOLDER_SUFFIX
+        # result = re.sub(pattern, r'\1', result)
         return result
 
     def _patch_comment(self, url, body):
