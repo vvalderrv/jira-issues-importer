@@ -42,6 +42,10 @@ class Project:
 
         self._add_labels(item)
 
+        self._add_subtasks(item)
+
+        self._add_parenttask(item)
+
         self._add_comments(item)
 
         self._add_relationships(item)
@@ -139,6 +143,28 @@ class Project:
                 tmp_l = 'bug'
 
             self._project['Issues'][-1]['labels'].append(tmp_l)
+        except AttributeError:
+            pass
+
+    def _add_subtasks(self, item):
+        try:
+            subtaskList = ''
+            for subtask in item.subtasks.subtask:
+                subtaskList = subtaskList + '- ' + subtask + '\n'
+            if subtaskList != '':
+                self._project['Issues'][-1]['comments'].append(
+                    {"created_at": self._convert_to_iso(item.created.text),
+                     "body": 'Subtasks:\n\n' + subtaskList})
+        except AttributeError:
+            pass
+
+    def _add_parenttask(self, item):
+        try:
+            parentTask = item.parent.text
+            if parentTask != '':
+                self._project['Issues'][-1]['comments'].append(
+                    {"created_at": self._convert_to_iso(item.created.text),
+                     "body": 'Subtask of parent task ' + parentTask})
         except AttributeError:
             pass
 
