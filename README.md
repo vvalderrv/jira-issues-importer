@@ -31,7 +31,7 @@ I took these as a starting point for this project. I restructured the code and a
 
 # Caveats
  * this project does not try to map JIRA users to Github users
-   * the Github user which performs the import will appear as issue creator, the original JIRA issue reporter is noted in the first comment
+   * the Github user (based on the personal access token used) which performs the import will appear as issue creator, the original JIRA issue reporter is noted in the first comment
    * the Github user which performs the import will also appear as comment creator, as the Github API doesn't support that (yet),
      the original JIRA commentator is noted in the comment text
 
@@ -51,13 +51,14 @@ I took these as a starting point for this project. I restructured the code and a
 * export the desired JIRA issues of your project (see section below)
 * to start the Github import, execute 'python main.py'
 * edit the `labelcolourselector.py` if you want to change the logic of how the colours are set on labels
+* [create a personal access token in GitHub](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token) (Be sure to save the token somewhere safe; you will have to enter it later. **Warning:** Treat your tokens like passwords and keep them secret.)
 * on startup it will ask for
   * the JIRA XML export file name (use a semi-colon to enter multiple XML paths)
   * the JIRA project name
-  * the `<statusCategoryId>` element's `id` attribute that signifies an issue as Done 
-  * the Github account name (user or organization)
+  * the `<statusCategoryId>` element's `id` attribute that signifies an issue as Done (this is an integer)
+  * the Github account name that owns the repository (user or organization)
   * the target Github repository name
-  * the Github user and password for authentication
+  * the Github [personal access token](https://github.com/settings/tokens) for authentication
   * the index at which to start from, enter 0 to begin, if you have a failure, enter the index number the import failed at. Entering a number higher than 0 will stop labels from re-importing and milestones will re-match to existing.
 * the import process will then
   * read the JIRA XML export file and create an in-memory project representation of the xml file contents

@@ -21,14 +21,13 @@ all_xml_files = read_xml_sourcefile(file_names)
 
 jira_proj = input('JIRA project name to use: ')
 jira_done_id = input('JIRA Done statusCategory ID: ')
-us = input('GitHub account name: ')
+ac = input('GitHub account name: ')
 repo = input('GitHub project name: ')
-user = input('GitHub username: ')
-pw = input('GitHub password: ')
+pat = input('GitHub personal access token: ')
 start_from_issue = input('Start from (0 = beginning): ')
 
-Options = namedtuple("Options", "user passwd account repo")
-opts = Options(user=user, passwd=pw, account=us, repo=repo)
+Options = namedtuple("Options", "accesstoken account repo")
+opts = Options(accesstoken=pat, account=ac, repo=repo)
 
 project = Project(jira_proj, jira_done_id)
 
