@@ -24,7 +24,7 @@ jira_done_id = input('JIRA Done statusCategory ID: ')
 ac = input('GitHub account name: ')
 repo = input('GitHub project name: ')
 pat = input('GitHub personal access token: ')
-start_from_issue = input('Start from (0 = beginning): ')
+start_from_issue = input('Start from (default is 0 = beginning): ') or '0'
 
 Options = namedtuple("Options", "accesstoken account repo")
 opts = Options(accesstoken=pat, account=ac, repo=repo)
