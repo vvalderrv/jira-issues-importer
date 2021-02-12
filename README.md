@@ -1,3 +1,7 @@
+# Update
+
+I created this fork to address GitHub's [change in API authentication](https://developer.github.com/changes/2020-02-10-deprecating-auth-through-query-param/).
+
 # JIRA issues importer
 
 Python 3.x scripts for importing JIRA issues in XML format into an existing Github project without existing issues
