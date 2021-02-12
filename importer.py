@@ -51,17 +51,17 @@ class Importer:
             nextPageUrl = get_next_page_url(links[0])
 
             while nextPageUrl is not None:
-            time.sleep(1)
-            nextPageUrl = None
+                time.sleep(1)
+                nextPageUrl = None
 
-            for l in links:
-                if 'rel="next"' in l:
-                    nextPageUrl = get_next_page_url(l)
+                for l in links:
+                    if 'rel="next"' in l:
+                        nextPageUrl = get_next_page_url(l)
 
-            if nextPageUrl is not None:
-                ms = get_milestone_list(nextPageUrl)
-                links = ms.headers['Link'].split(',')
-                milestone_pages.append(ms.json())
+                if nextPageUrl is not None:
+                    ms = get_milestone_list(nextPageUrl)
+                    links = ms.headers['Link'].split(',')
+                    milestone_pages.append(ms.json())
 
         for ms_json in milestone_pages:
             for m in ms_json:
@@ -89,7 +89,7 @@ class Importer:
 
     def import_labels(self, colourSelector):
         """
-        Imports the gathered project components and labels as labels into GitHub
+        Imports the gathered project components and labels as labels into GitHub 
         """
         label_url = self.github_url + '/labels'
         print('Importing labels...', label_url)
@@ -111,8 +111,8 @@ class Importer:
         Starts the issue import into GitHub:
         First the milestone id is captured for the issue.
         Then JIRA issue relationships are converted into comments.
-        After that, the comments are taken out of the issue and
-        references to JIRA issues in comments are replaced with a placeholder
+        After that, the comments are taken out of the issue and 
+        references to JIRA issues in comments are replaced with a placeholder    
         """
         print('Importing issues...')
 
@@ -150,7 +150,7 @@ class Importer:
         This is a two-step process:
         First the issue with the comments is pushed to GitHub asynchronously.
         Then GitHub is pulled in a loop until the issue import is completed.
-        Finally the issue github is noted.
+        Finally the issue github is noted.    
         """
         print('Issue ', issue['key'])
         jiraKey = issue['key']
@@ -284,7 +284,7 @@ class Importer:
 
         comments = response.json()
         for comment in comments:
-            # print("handling comment " + comment['url'])
+            print("handling comment " + comment['url'])
             body = comment['body']
             if Importer._PLACEHOLDER_PREFIX in body:
                 newbody = self._replace_github_id_placholder(body)

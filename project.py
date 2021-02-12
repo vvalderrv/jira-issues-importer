@@ -82,7 +82,7 @@ class Project:
 
         self._project['Issues'].append({'title': item.title.text[item.title.text.index("]") + 2:len(item.title.text)],
                                         'key': item.key.text,
-                                        'body': self._htmlentitydecode(item.description.text) + '\n<i>' + item.title.text + ' created by ' + item.reporter + '</i>',
+                                        'body': self._htmlentitydecode(item.description.text) + '\n<i>Imported from JIRA:\n' + item.title.text + '\n(original by ' + item.reporter + ')</i>',
                                         'created_at': self._convert_to_iso(item.created.text),
                                         'closed_at': closed_at,
                                         'updated_at': self._convert_to_iso(item.updated.text),
