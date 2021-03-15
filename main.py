@@ -19,12 +19,12 @@ file_names = input(
     'Path to JIRA XML query file (semi-colon separate for multiple files): ')
 all_xml_files = read_xml_sourcefile(file_names)
 
-jira_proj = input('JIRA project name to use: ')
-jira_done_id = input('JIRA Done statusCategory ID: ')
+jira_proj = input('JIRA project name: ')
+jira_done_id = input('JIRA Done statusCategory ID [default "3"]: ') or '3'
 ac = input('GitHub account name: ')
 repo = input('GitHub project name: ')
 pat = input('GitHub personal access token: ')
-start_from_issue = input('Start from (default is 0 = beginning): ') or '0'
+start_from_issue = input('Start from [default "0" (beginning)]: ') or '0'
 
 Options = namedtuple("Options", "accesstoken account repo")
 opts = Options(accesstoken=pat, account=ac, repo=repo)
