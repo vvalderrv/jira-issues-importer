@@ -1,6 +1,10 @@
 # Update
 
-I created this fork to address GitHub's [change in API authentication](https://developer.github.com/changes/2020-02-10-deprecating-auth-through-query-param/).
+I created this fork to address GitHub's [change in API authentication](https://developer.github.com/changes/2020-02-10-deprecating-auth-through-query-param/). 
+
+I also fixed some bugs, updated some formatting, and set some defaults when running the tool. For JIRA issues with subtasks, the imported issues now include a list of the subtasks or parent task as appropriate.
+
+Finally, I disabled the issue ID replacement procedures. It wasn't working for me, and I didn't find this step necessary, anyway.
 
 # JIRA issues importer
 
@@ -50,12 +54,17 @@ I took these as a starting point for this project. I restructured the code and a
 
 # Getting started
 
+## Setup
+
 * clone this repository
 * run `pip install -r requirements.txt`
-* export the desired JIRA issues of your project (see section below)
-* to start the Github import, execute 'python main.py'
 * edit the `labelcolourselector.py` if you want to change the logic of how the colours are set on labels
 * [create a personal access token in GitHub](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token) (Be sure to save the token somewhere safe; you will have to enter it later. **Warning:** Treat your tokens like passwords and keep them secret.)
+
+## Running the tool
+
+* export the desired JIRA issues of your project ([see section below](#export-jira-issues))
+* to start the Github import, execute `python main.py`
 * on startup it will ask for
   * the JIRA XML export file name (use a semi-colon to enter multiple XML paths)
   * the JIRA project name
@@ -73,7 +82,7 @@ I took these as a starting point for this project. I restructured the code and a
     * the used import API will not run into abuse rate limits in contrast to the normal [Github Issues API](https://developer.github.com/v3/issues/)
   * post-process all comments to replace the issue reference placeholders with the real Github issue ids using the [Github Comment API](https://developer.github.com/v3/issues/comments/)
 
-# Export JIRA issues
+## Export JIRA issues
 
 1. Navigate to Issue search page for project. Issues --> Search for Issues
 
