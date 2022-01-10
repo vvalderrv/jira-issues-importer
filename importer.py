@@ -1,13 +1,14 @@
+from pprint import pprint
 import requests
 import random
 import time
 import re
-
+import json
 
 class Importer:
-    # _GITHUB_ISSUE_PREFIX = "GH-"
-    # _PLACEHOLDER_PREFIX = "@PSTART"
-    # _PLACEHOLDER_SUFFIX = "@PEND"
+    _GITHUB_ISSUE_PREFIX = "INFRA-"
+    _PLACEHOLDER_PREFIX = "@PSTART"
+    _PLACEHOLDER_SUFFIX = "@PEND"
     _DEFAULT_TIME_OUT = 120.0
 
     def __init__(self, options, project):
@@ -15,10 +16,10 @@ class Importer:
         self.project = project
         self.github_url = 'https://api.github.com/repos/%s/%s' % (
             self.options.account, self.options.repo)
-        # self.jira_issue_replace_patterns = {
-        #     'https://java.net/jira/browse/%s%s' % (self.project.name, r'-(\d+)'): r'\1',
-        #     self.project.name + r'-(\d+)': Importer._GITHUB_ISSUE_PREFIX + r'\1',
-        #     r'Issue (\d+)': Importer._GITHUB_ISSUE_PREFIX + r'\1'}
+        self.jira_issue_replace_patterns = {
+            'https://issues.jenkins.io/browse/%s%s' % (self.project.name, r'-(\d+)'): r'\1',
+            self.project.name + r'-(\d+)': Importer._GITHUB_ISSUE_PREFIX + r'\1',
+            r'Issue (\d+)': Importer._GITHUB_ISSUE_PREFIX + r'\1'}
         self.headers = {
             'Accept': 'application/vnd.github.golden-comet-preview+json',
             'Authorization': f'token {options.accesstoken}'
@@ -96,12 +97,22 @@ class Importer:
         print
 
         for lkey in self.project.get_all_labels().keys():
-            data = {'name': lkey,
+
+            prefixed_lkey = lkey
+            # prefix component
+            if (lkey in self.project.get_components().keys()):
+                prefixed_lkey = 'jira-component:' + lkey.lower()
+
+            # prefix issue type
+            if (lkey in self.project.get_types().keys()):
+                prefixed_lkey = 'jira-type:' + lkey.lower()
+
+            data = {'name': prefixed_lkey,
                     'color': colourSelector.get_colour(lkey)}
             r = requests.post(label_url, json=data, headers=self.headers,
                 timeout=Importer._DEFAULT_TIME_OUT)
             if r.status_code == 201:
-                print(lkey)
+                print(lkey + '->' + prefixed_lkey)
             else:
                 print('Failure importing label ' + lkey,
                       r.status_code, r.content, r.headers)
@@ -209,7 +220,7 @@ class Importer:
                 break
 
         if status == 'imported':
-            print("Imported Issue:", response.json()['issue_url'])
+            print("Imported Issue:", response.json()['issue_url'].replace('api.github.com/repos/', 'github.com/'))
         elif status == 'failed':
             raise RuntimeError(
                 "Failed to import GitHub issue due to the following errors:\n{}"
@@ -231,23 +242,23 @@ class Importer:
 
         for duplicate_item in duplicates:
             issue['comments'].append(
-                {"body": "Duplicates: " + self._replace_jira_with_github_id(duplicate_item)})
+                {"body": "<i>[Duplicates: " + self._replace_jira_with_github_id(duplicate_item)})
 
         for is_duplicated_by_item in is_duplicated_by:
             issue['comments'].append(
-                {"body": "Is duplicated by: " + self._replace_jira_with_github_id(is_duplicated_by_item)})
+                {"body": '<i>[Originally duplicated by: <a href="https://github.com/jenkins-infra/helpdesk/issues?q=' + self._replace_jira_with_github_id(is_duplicated_by_item) + '">' + self._replace_jira_with_github_id(is_duplicated_by_item) + '</a>]</i>'})
 
         for relates_to_item in relates_to:
             issue['comments'].append(
-                {"body": "Is related to: " + self._replace_jira_with_github_id(relates_to_item)})
+                {"body": '<i>[Originally related to: <a href="https://github.com/jenkins-infra/helpdesk/issues?q=' + self._replace_jira_with_github_id(relates_to_item) + '">' + self._replace_jira_with_github_id(relates_to_item) + '</a>]</i>'})
 
         for depends_on_item in depends_on:
             issue['comments'].append(
-                {"body": "Depends on: " + self._replace_jira_with_github_id(depends_on_item)})
+                {"body": '<i>[Originally depends on: <a href="https://github.com/jenkins-infra/helpdesk/issues?q=' + self._replace_jira_with_github_id(depends_on_item) + '">' + self._replace_jira_with_github_id(depends_on_item) + '</a>]</i>'})
 
         for blocks_item in blocks:
             issue['comments'].append(
-                {"body": "Blocks: " + self._replace_jira_with_github_id(blocks_item)})
+                {"body": '<i>[Originally blocks: <a href="https://github.com/jenkins-infra/helpdesk/issues?q=' + self._replace_jira_with_github_id(blocks_item) + '">' + self._replace_jira_with_github_id(blocks_item) + '</a>]</i>'})
 
         del issue['duplicates']
         del issue['is-duplicated-by']
@@ -287,7 +298,7 @@ class Importer:
     #         print("handling comment " + comment['url'])
     #         body = comment['body']
     #         if Importer._PLACEHOLDER_PREFIX in body:
-    #             newbody = self._replace_github_id_placholder(body)
+    #             newbody = self._replace_github_id_placeholder(body)
     #             self._patch_comment(comment['url'], newbody)
     #     try:
     #         next_comments = response.links["next"]
@@ -300,7 +311,7 @@ class Importer:
     #             print(key)
     #             print(value)
 
-    def _replace_github_id_placholder(self, text):
+    def _replace_github_id_placeholder(self, text):
         result = text
         # pattern = Importer._PLACEHOLDER_PREFIX + Importer._GITHUB_ISSUE_PREFIX + \
         #     r'(\d+)' + Importer._PLACEHOLDER_SUFFIX
@@ -310,18 +321,18 @@ class Importer:
         # result = re.sub(pattern, r'\1', result)
         return result
 
-    def _patch_comment(self, url, body):
-        """
-        Patches a single comment body of a Github issue.
-        """
-        print("patching comment " + url)
-        # print("new body:" + body)
-        patch_data = {'body': body}
-        # print(patch_data)
-        response = requests.patch(url, json=patch_data, headers=self.headers,
-            timeout=Importer._DEFAULT_TIME_OUT)
-        if response.status_code != 200:
-            raise RuntimeError(
-                "Failed to patch comment {} due to unexpected HTTP status code: {} ; text: {}".format(
-                    url, response.status_code, response.text)
-            )
+    # def _patch_comment(self, url, body):
+    #     """
+    #     Patches a single comment body of a Github issue.
+    #     """
+    #     print("patching comment " + url)
+    #     # print("new body:" + body)
+    #     patch_data = {'body': body}
+    #     # print(patch_data)
+    #     response = requests.patch(url, json=patch_data, headers=self.headers,
+    #         timeout=Importer._DEFAULT_TIME_OUT)
+    #     if response.status_code != 200:
+    #         raise RuntimeError(
+    #             "Failed to patch comment {} due to unexpected HTTP status code: {} ; text: {}".format(
+    #                 url, response.status_code, response.text)
+    #         )
