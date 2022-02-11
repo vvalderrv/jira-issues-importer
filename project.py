@@ -1,13 +1,16 @@
 from collections import defaultdict
 from html.entities import name2codepoint
 from dateutil.parser import parse
+from pprint import pprint
 import re
+import json
 
 class Project:
 
-    def __init__(self, name, doneStatusCategoryId):
+    def __init__(self, name, doneStatusCategoryId, jiraBaseUrl):
         self.name = name
         self.doneStatusCategoryId = doneStatusCategoryId
+        self.jiraBaseUrl = jiraBaseUrl
         self._project = {'Milestones': defaultdict(int), 'Components': defaultdict(
             int), 'Labels': defaultdict(int), 'Types': defaultdict(int), 'Issues': []}
 
@@ -27,6 +30,7 @@ class Project:
         merge = self._project['Components'].copy()
         merge.update(self._project['Labels'])
         merge.update(self._project['Types'])
+        merge.update({'imported-jira-issue': 0})
         return merge
 
     def add_item(self, item):
@@ -84,14 +88,63 @@ class Project:
             except AttributeError:
                 pass
 
-        self._project['Issues'].append({'title': item.title.text[item.title.text.index("]") + 2:len(item.title.text)],
+        # TODO: ensure item.assignee/reporter.get('username') to avoid "JENKINSUSER12345"
+        # TODO: fixit in gh issues
+
+        body = self._htmlentitydecode(item.description.text)
+        # metadata: original author & link
+        body = body + '\n\n---\n<details><summary><i>Originally reported by <a title="' + item.reporter + '" href="' + self.jiraBaseUrl + '/secure/ViewProfile.jspa?name=' + item.reporter.get('username') + '">' + item.reporter.get('username') + '</a>, imported from: <a href="' + self.jiraBaseUrl + '/browse/' + item.key.text + '" target="_blank">' + item.title.text[item.title.text.index("]") + 2:len(item.title.text)] + '</a></i></summary>'
+        # metadata: assignee
+        body = body + '\n<i><ul>'
+        if item.assignee != 'Unassigned':
+            body = body + '\n<li><b>assignee</b>: <a title="' + item.assignee + '" href="' + self.jiraBaseUrl + '/secure/ViewProfile.jspa?name=' + item.assignee.get('username') + '">' + item.assignee.get('username') + '</a>'
+        try:
+            body = body + '\n<li><b>status</b>: ' + item.status
+        except AttributeError:
+            pass
+        try:
+            body = body + '\n<li><b>priority</b>: ' + item.priority
+        except AttributeError:
+            pass
+        try:
+            body = body + '\n<li><b>resolution</b>: ' + item.resolution
+        except AttributeError:
+            pass
+        try:
+            body = body + '\n<li><b>resolved</b>: ' + self._convert_to_iso(item.resolved.text)
+        except AttributeError:
+            pass
+        body = body + '\n<li><b>imported</b>: 2022/01/10'
+        body = body + '\n</ul></i>\n</details>'
+
+        # retrieve jira components and labels as github labels
+        labels = []
+        for component in item.component:
+            labels.append('jira-component:' + component.text.lower())
+            labels.append(component.text.lower())
+
+        #labels.append('type:' + component.text)
+        for ltype in self._project['Types'].keys():
+            labels.append('jira-type:' + component.text)
+        
+        try:
+            for label in item.labels.label:
+                labels.append(label.key().trim().lower())
+        except AttributeError:
+            pass
+
+        labels.append('imported-jira-issue')
+
+        unique_labels = list(set(labels))
+
+        self._project['Issues'].append({'title': item.title.text,
                                         'key': item.key.text,
-                                        'body': self._htmlentitydecode(item.description.text) + '\n<i>Imported from JIRA:\n' + item.title.text + '\n(original by ' + item.reporter + ')</i>',
+                                        'body': body,
                                         'created_at': self._convert_to_iso(item.created.text),
                                         'closed_at': closed_at,
                                         'updated_at': self._convert_to_iso(item.updated.text),
                                         'closed': closed,
-                                        'labels': [],
+                                        'labels': unique_labels,
                                         'comments': [],
                                         'duplicates': [],
                                         'is-duplicated-by': [],
@@ -152,6 +205,7 @@ class Project:
             for subtask in item.subtasks.subtask:
                 subtaskList = subtaskList + '- ' + subtask + '\n'
             if subtaskList != '':
+                print('-> subtaskList: ' + subtaskList)
                 self._project['Issues'][-1]['comments'].append(
                     {"created_at": self._convert_to_iso(item.created.text),
                      "body": 'Subtasks:\n\n' + subtaskList})
@@ -162,6 +216,7 @@ class Project:
         try:
             parentTask = item.parent.text
             if parentTask != '':
+                print('-> parentTask: ' + parentTask)
                 self._project['Issues'][-1]['comments'].append(
                     {"created_at": self._convert_to_iso(item.created.text),
                      "body": 'Subtask of parent task ' + parentTask})
@@ -173,7 +228,7 @@ class Project:
             for comment in item.comments.comment:
                 self._project['Issues'][-1]['comments'].append(
                     {"created_at": self._convert_to_iso(comment.get('created')),
-                     "body": self._htmlentitydecode(comment.text) + '\n<i>by ' + comment.get('author') + '</i>'
+                     "body": '<i><a href="' + self.jiraBaseUrl + '/secure/ViewProfile.jspa?name=' + comment.get('author') + '">' + comment.get('author') + '</a>:</i>\n' + self._htmlentitydecode(comment.text)
                      })
         except AttributeError:
             pass

@@ -19,17 +19,18 @@ file_names = input(
     'Path to JIRA XML query file (semi-colon separate for multiple files): ')
 all_xml_files = read_xml_sourcefile(file_names)
 
-jira_proj = input('JIRA project name: ')
+jira_proj = input('JIRA project name: ') or 'INFRA'
 jira_done_id = input('JIRA Done statusCategory ID [default "3"]: ') or '3'
-ac = input('GitHub account name: ')
-repo = input('GitHub project name: ')
-pat = input('GitHub personal access token: ')
+jira_base_url = input('JIRA base url [default "https://issues.jenkins.io"]: ') or 'https://issues.jenkins.io'
+ac = input('GitHub account name (user/org): ') or 'jenkins-infra'
+repo = input('GitHub repository name: ') or 'helpdesk'
+pat = input('Github Personal Access Token: ') # or '<your-github-pat>'
 start_from_issue = input('Start from [default "0" (beginning)]: ') or '0'
 
 Options = namedtuple("Options", "accesstoken account repo")
 opts = Options(accesstoken=pat, account=ac, repo=repo)
 
-project = Project(jira_proj, jira_done_id)
+project = Project(jira_proj, jira_done_id, jira_base_url)
 
 for f in all_xml_files:
     for item in f.channel.item:
