@@ -90,3 +90,7 @@ ENV/
 .ropeproject
 
 *.xml
+
+labels_mapping.txt
+allowed_labels.txt
+jira-keys-to-github-id.txt

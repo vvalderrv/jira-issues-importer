@@ -1,9 +1,9 @@
-from pprint import pprint
+import os
 import requests
-import random
 import time
-import re
-import json
+
+from utils import fetch_labels_mapping, fetch_allowed_labels, convert_label
+
 
 class Importer:
     _GITHUB_ISSUE_PREFIX = "INFRA-"
@@ -24,6 +24,9 @@ class Importer:
             'Accept': 'application/vnd.github.golden-comet-preview+json',
             'Authorization': f'token {options.accesstoken}'
         }
+
+        self.labels_mapping = fetch_labels_mapping()
+        self.approved_labels = fetch_allowed_labels()
 
     def import_milestones(self):
         """
@@ -66,12 +69,14 @@ class Importer:
 
         for ms_json in milestone_pages:
             for m in ms_json:
-                if m['title'] in self.project.get_milestones().keys():
-                    self.project.get_milestones()[m['title']] = m['number']
-                    print(m['title'], 'found')
-                    existing.append(m['title'])
-                else:
-                    print(m['title'], 'not found')
+                print(self.project.get_milestones().keys())
+                try:
+                    if m['title'] in self.project.get_milestones().keys():
+                        self.project.get_milestones()[m['title']] = m['number']
+                        print(m['title'], 'found')
+                        existing.append(m['title'])
+                except TypeError:
+                    pass
 
         # Export new ones
         for mkey in self.project.get_milestones().keys():
@@ -88,33 +93,34 @@ class Importer:
                 self.project.get_milestones()[mkey] = content['number']
                 print(mkey)
 
-    def import_labels(self, colourSelector):
+
+    def import_labels(self, colour_selector):
         """
         Imports the gathered project components and labels as labels into GitHub 
         """
         label_url = self.github_url + '/labels'
         print('Importing labels...', label_url)
-        print
+        print()
 
         for lkey in self.project.get_all_labels().keys():
 
-            prefixed_lkey = lkey
+            prefixed_lkey = lkey.lower()
             # prefix component
-            if (lkey in self.project.get_components().keys()):
-                prefixed_lkey = 'jira-component:' + lkey.lower()
+            if os.getenv('JIRA_MIGRATION_INCLUDE_COMPONENT_IN_LABELS', 'true') == 'true':
+                if lkey in self.project.get_components().keys():
+                    prefixed_lkey = 'jira-component:' + prefixed_lkey
 
-            # prefix issue type
-            if (lkey in self.project.get_types().keys()):
-                prefixed_lkey = 'jira-type:' + lkey.lower()
+            prefixed_lkey = convert_label(prefixed_lkey, self.labels_mapping, self.approved_labels)
+            if prefixed_lkey is None:
+                continue
 
             data = {'name': prefixed_lkey,
-                    'color': colourSelector.get_colour(lkey)}
-            r = requests.post(label_url, json=data, headers=self.headers,
-                timeout=Importer._DEFAULT_TIME_OUT)
+                    'color': colour_selector.get_colour(lkey)}
+            r = requests.post(label_url, json=data, headers=self.headers, timeout=Importer._DEFAULT_TIME_OUT)
             if r.status_code == 201:
                 print(lkey + '->' + prefixed_lkey)
             else:
-                print('Failure importing label ' + lkey,
+                print('Failure importing label ' + prefixed_lkey,
                       r.status_code, r.content, r.headers)
 
     def import_issues(self, start_from_count):
@@ -131,6 +137,7 @@ class Importer:
 
         for issue in self.project.get_issues():
             if start_from_count > count:
+                count += 1
                 continue
 
             print("Index = ", count)
@@ -164,17 +171,20 @@ class Importer:
         Finally the issue github is noted.    
         """
         print('Issue ', issue['key'])
-        jiraKey = issue['key']
+        print('Labels', issue['labels'])
+        jira_key = issue['key']
         del issue['key']
 
         response = self.upload_github_issue(issue, comments)
         status_url = response.json()['url']
-        gh_issue_url = self.wait_for_issue_creation(
-            status_url).json()['issue_url']
+        gh_issue_url = self.wait_for_issue_creation(status_url).json()['issue_url']
         gh_issue_id = int(gh_issue_url.split('/')[-1])
         issue['githubid'] = gh_issue_id
-        #print("\nGithub issue id: ", gh_issue_id)
-        issue['key'] = jiraKey
+        issue['key'] = jira_key
+
+        jira_gh = f"{jira_key}:{gh_issue_id}\n"
+        with open('jira-keys-to-github-id.txt', 'a') as f:
+            f.write(jira_gh)
 
     def upload_github_issue(self, issue, comments):
         """
@@ -239,32 +249,44 @@ class Importer:
         relates_to = issue['is-related-to']
         depends_on = issue['depends-on']
         blocks = issue['blocks']
+        try:
+            epic_link = issue['epic-link']
+        except (AttributeError, KeyError):
+            epic_link = None
 
         for duplicate_item in duplicates:
             issue['comments'].append(
-                {"body": "<i>[Duplicates: " + self._replace_jira_with_github_id(duplicate_item)})
+                {"body": f'<i>[Duplicates: <a href="https://github.com/{self.options.account}/{self.options.repo}/issues?q=in%3Atitle%20' + self._replace_jira_with_github_id(duplicate_item) + '">' + self._replace_jira_with_github_id(duplicate_item) + '</a>]</i>'})
 
         for is_duplicated_by_item in is_duplicated_by:
             issue['comments'].append(
-                {"body": '<i>[Originally duplicated by: <a href="https://github.com/jenkins-infra/helpdesk/issues?q=' + self._replace_jira_with_github_id(is_duplicated_by_item) + '">' + self._replace_jira_with_github_id(is_duplicated_by_item) + '</a>]</i>'})
+                {"body": f'<i>[Originally duplicated by: <a href="https://github.com/{self.options.account}/{self.options.repo}/issues?q=in%3Atitle%20' + self._replace_jira_with_github_id(is_duplicated_by_item) + '">' + self._replace_jira_with_github_id(is_duplicated_by_item) + '</a>]</i>'})
 
         for relates_to_item in relates_to:
             issue['comments'].append(
-                {"body": '<i>[Originally related to: <a href="https://github.com/jenkins-infra/helpdesk/issues?q=' + self._replace_jira_with_github_id(relates_to_item) + '">' + self._replace_jira_with_github_id(relates_to_item) + '</a>]</i>'})
+                {"body": f'<i>[Originally related to: <a href="https://github.com/{self.options.account}/{self.options.repo}/issues?q=in%3Atitle%20' + self._replace_jira_with_github_id(relates_to_item) + '">' + self._replace_jira_with_github_id(relates_to_item) + '</a>]</i>'})
 
         for depends_on_item in depends_on:
             issue['comments'].append(
-                {"body": '<i>[Originally depends on: <a href="https://github.com/jenkins-infra/helpdesk/issues?q=' + self._replace_jira_with_github_id(depends_on_item) + '">' + self._replace_jira_with_github_id(depends_on_item) + '</a>]</i>'})
+                {"body": f'<i>[Originally depends on: <a href="https://github.com/{self.options.account}/{self.options.repo}/issues?q=in%3Atitle%20' + self._replace_jira_with_github_id(depends_on_item) + '">' + self._replace_jira_with_github_id(depends_on_item) + '</a>]</i>'})
 
         for blocks_item in blocks:
             issue['comments'].append(
-                {"body": '<i>[Originally blocks: <a href="https://github.com/jenkins-infra/helpdesk/issues?q=' + self._replace_jira_with_github_id(blocks_item) + '">' + self._replace_jira_with_github_id(blocks_item) + '</a>]</i>'})
+                {"body": f'<i>[Originally blocks: <a href="https://github.com/{self.options.account}/{self.options.repo}/issues?q=in%3Atitle%20' + self._replace_jira_with_github_id(blocks_item) + '">' + self._replace_jira_with_github_id(blocks_item) + '</a>]</i>'})
+
+        if epic_link:
+            issue['comments'].append(
+                {"body": f'<i>[Epic: <a href="https://github.com/{self.options.account}/{self.options.repo}/issues?q=in%3Atitle%20' + self._replace_jira_with_github_id(epic_link) + '%20label%3Aepic">' + self._replace_jira_with_github_id(epic_link) + '</a>]</i>'})
 
         del issue['duplicates']
         del issue['is-duplicated-by']
         del issue['is-related-to']
         del issue['depends-on']
         del issue['blocks']
+        try:
+            del issue['epic-link']
+        except KeyError:
+            pass
 
     def _replace_jira_with_github_id(self, text):
         result = text

@@ -1,9 +1,12 @@
+import os
 from collections import defaultdict
 from html.entities import name2codepoint
 from dateutil.parser import parse
-from pprint import pprint
+from datetime import datetime
 import re
-import json
+
+from utils import fetch_labels_mapping, fetch_allowed_labels, convert_label
+
 
 class Project:
 
@@ -13,6 +16,9 @@ class Project:
         self.jiraBaseUrl = jiraBaseUrl
         self._project = {'Milestones': defaultdict(int), 'Components': defaultdict(
             int), 'Labels': defaultdict(int), 'Types': defaultdict(int), 'Issues': []}
+
+        self.labels_mapping = fetch_labels_mapping()
+        self.approved_labels = fetch_allowed_labels()
 
     def get_milestones(self):
         return self._project['Milestones']
@@ -30,6 +36,11 @@ class Project:
         merge = self._project['Components'].copy()
         merge.update(self._project['Labels'])
         merge.update(self._project['Types'])
+        merge.update({'imported-jira-issue': 0})
+        return merge
+
+    def get_labels(self):
+        merge = self._project['Labels'].copy()
         merge.update({'imported-jira-issue': 0})
         return merge
 
@@ -93,11 +104,12 @@ class Project:
 
         body = self._htmlentitydecode(item.description.text)
         # metadata: original author & link
-        body = body + '\n\n---\n<details><summary><i>Originally reported by <a title="' + item.reporter + '" href="' + self.jiraBaseUrl + '/secure/ViewProfile.jspa?name=' + item.reporter.get('username') + '">' + item.reporter.get('username') + '</a>, imported from: <a href="' + self.jiraBaseUrl + '/browse/' + item.key.text + '" target="_blank">' + item.title.text[item.title.text.index("]") + 2:len(item.title.text)] + '</a></i></summary>'
+
+        body = body + '\n\n---\n<details><summary><i>Originally reported by <a title="' + str(item.reporter) + '" href="' + self.jiraBaseUrl + '/secure/ViewProfile.jspa?name=' + item.reporter.get('username') + '">' + item.reporter.get('username') + '</a>, imported from: <a href="' + self.jiraBaseUrl + '/browse/' + item.key.text + '" target="_blank">' + item.title.text[item.title.text.index("]") + 2:len(item.title.text)] + '</a></i></summary>'
         # metadata: assignee
         body = body + '\n<i><ul>'
         if item.assignee != 'Unassigned':
-            body = body + '\n<li><b>assignee</b>: <a title="' + item.assignee + '" href="' + self.jiraBaseUrl + '/secure/ViewProfile.jspa?name=' + item.assignee.get('username') + '">' + item.assignee.get('username') + '</a>'
+            body = body + '\n<li><b>assignee</b>: <a title="' + str(item.assignee) + '" href="' + self.jiraBaseUrl + '/secure/ViewProfile.jspa?name=' + item.assignee.get('username') + '">' + item.assignee.get('username') + '</a>'
         try:
             body = body + '\n<li><b>status</b>: ' + item.status
         except AttributeError:
@@ -114,24 +126,22 @@ class Project:
             body = body + '\n<li><b>resolved</b>: ' + self._convert_to_iso(item.resolved.text)
         except AttributeError:
             pass
-        body = body + '\n<li><b>imported</b>: 2022/01/10'
+        body = body + '\n<li><b>imported</b>: ' + datetime.today().strftime('%Y-%m-%d')
         body = body + '\n</ul></i>\n</details>'
 
         # retrieve jira components and labels as github labels
         labels = []
         for component in item.component:
-            labels.append('jira-component:' + component.text.lower())
-            labels.append(component.text.lower())
+            if os.getenv('JIRA_MIGRATION_INCLUDE_COMPONENT_IN_LABELS', 'true') == 'true':
+                labels.append('jira-component:' + component.text.lower())
+                labels.append(component.text.lower())
 
-        #labels.append('type:' + component.text)
-        for ltype in self._project['Types'].keys():
-            labels.append('jira-type:' + component.text)
+        labels.append(self._jira_type_mapping(item.type.text.lower()))
         
-        try:
-            for label in item.labels.label:
-                labels.append(label.key().trim().lower())
-        except AttributeError:
-            pass
+        for label in item.labels.findall('label'):
+            converted_label = convert_label(label.text.strip().lower(), self.labels_mapping, self.approved_labels)
+            if converted_label is not None:
+                labels.append(converted_label)
 
         labels.append('imported-jira-issue')
 
@@ -154,6 +164,22 @@ class Project:
                                         })
         if not self._project['Issues'][-1]['closed_at']:
             del self._project['Issues'][-1]['closed_at']
+
+    def _jira_type_mapping(self, issue_type):
+        if issue_type == 'bug':
+            return 'bug'
+        if issue_type == 'improvement':
+            return 'rfe'
+        if issue_type == 'new feature':
+            return 'rfe'
+        if issue_type == 'task':
+            return 'rfe'
+        if issue_type == 'story':
+            return 'rfe'
+        if issue_type == 'patch':
+            return 'rfe'
+        if issue_type == 'epic':
+            return 'epic'
 
     def _convert_to_iso(self, timestamp):
         dt = parse(timestamp)
@@ -258,6 +284,11 @@ class Project:
             pass
         except KeyError:
             print('2. KeyError at ' + item.key.text)
+
+        for customfield in item.customfields.findall('customfield'):
+            if customfield.get('key') == 'com.pyxis.greenhopper.jira:gh-epic-link':
+                epic_key = customfield.customfieldvalues.customfieldvalue
+                self._project['Issues'][-1]['epic-link'] = epic_key
 
     def _htmlentitydecode(self, s):
         if s is None:
