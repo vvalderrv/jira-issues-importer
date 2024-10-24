@@ -81,6 +81,7 @@ celerybeat-schedule
 
 # virtualenv
 venv/
+*venv/
 ENV/
 
 # Spyder project settings
@@ -94,3 +95,6 @@ ENV/
 labels_mapping.txt
 allowed_labels.txt
 jira-keys-to-github-id.txt
+
+# misc
+*~
