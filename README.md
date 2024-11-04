@@ -42,20 +42,20 @@ pip install -r requirements.txt
 
 1. **Prepare your environment:**
 
-   Ensure the Jira XML export file is in the same directory as the scripts. No need to provide an explicit path; the script will auto-detect the XML file. 
+   Ensure the Jira XML export file is in the same directory as the scripts. No need to provide an explicit path; the script will auto-detect the XML file.
 
 2. **Run the migration script using the bash wrapper:**
 
-   Use the `run_migration.sh` script to run the migration simulation and provide the necessary arguments:
+   Use the `run_migration.sh` script to run the migration in either **simulation** or **migration** mode and provide the necessary arguments:
 
    ```bash
-   ./run_migration.sh -p <JIRA_PROJECT> -u <JIRA_URL> -g <GITHUB_ACCOUNT> -s <SECURITY_REPO_NAME> -r <DEFAULT_REPO_NAME>
+   ./run_migration.sh -p <JIRA_PROJECT> -u <JIRA_URL> -g <GITHUB_ACCOUNT> -s <SECURITY_REPO_NAME> -r <DEFAULT_REPO_NAME> -m <MODE>
    ```
 
    Example:
 
    ```bash
-   ./run_migration.sh -p CIMANAGE -u jira.example.com -g your-org -s security-repo -r default-repo
+   ./run_migration.sh -p CIMANAGE -u jira.example.com -g your-org -s security-repo -r default-repo -m simulation
    ```
 
    This will perform an assessment, verify the Jira XML export, and simulate the migration. A log of the simulation can be found in `migration_simulation.log`.
@@ -66,8 +66,8 @@ pip install -r requirements.txt
 
 4. **Perform the actual migration (when ready):**
 
-   After validating the simulation, you can modify the script to perform the actual migration.
+   After validating the simulation, switch `-m simulation` to `-m migration` to perform the actual migration.
 
 ## Logging
 
-A detailed log of each migration simulation is saved in `migration_simulation.log` file. This file includes the status of each milestone, label, and issue migration for review before performing the actual migration.
+A detailed log of each migration simulation is saved in the `migration_simulation.log` file. This file includes the status of each milestone, label, and issue migration for review before performing the actual migration.

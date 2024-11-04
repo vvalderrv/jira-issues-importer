@@ -5,7 +5,7 @@ START_FROM="0"
 JIRA_DONE_ID="3"
 
 # Parse command line arguments
-while getopts p:u:x:s:r:g: flag
+while getopts p:u:x:s:r:g:m: flag
 do
     case "${flag}" in
         p) JIRA_PROJECT=${OPTARG};;
@@ -13,9 +13,18 @@ do
         x) XML_PATH=${OPTARG};;
         s) SECURITY_REPO=${OPTARG};;
         r) DEFAULT_REPO=${OPTARG};;
-        g) GITHUB_ACCOUNT=${OPTARG};;
+	g) GITHUB_ACCOUNT=${OPTARG};;
+        m) MODE=${OPTARG};;
     esac
 done
+
+MODE=${MODE:-simulation}
+
+# Display the selected mode
+echo "Mode: $MODE"
+
+# Export the mode as an environment variable for use in main.py
+export MIGRATION_MODE="$MODE"
 
 # Check if GITHUB_ACCOUNT is missing and print an error
 if [ -z "$GITHUB_ACCOUNT" ]; then
