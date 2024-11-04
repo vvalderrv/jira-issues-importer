@@ -7,6 +7,14 @@ from importer import Importer
 from labelcolourselector import LabelColourSelector
 from utils import read_xml_files
 
+# Set migration mode based on environment variable, default to "simulation"
+migration_mode = os.getenv('MIGRATION_MODE', 'simulation')
+
+if migration_mode == 'simulation':
+    print("Running in simulation mode. No changes will be made.")
+else:
+    print("Running in actual migration mode. Changes will be applied.")
+
 # GitHub repository URLs for security and non-security issues
 SECURITY_REPO_URL = os.getenv('SECURITY_REPO_URL')
 DEFAULT_REPO_URL = os.getenv('DEFAULT_REPO_URL')
