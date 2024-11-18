@@ -13,15 +13,40 @@ do
         x) XML_PATH=${OPTARG};;
         s) SECURITY_REPO=${OPTARG};;
         r) DEFAULT_REPO=${OPTARG};;
-	g) GITHUB_ACCOUNT=${OPTARG};;
+        g) GITHUB_ACCOUNT=${OPTARG};;
         m) MODE=${OPTARG};;
     esac
 done
 
-MODE=${MODE:-simulation}
+# Validate and export GITHUB_ACCOUNT
+if [ -z "$GITHUB_ACCOUNT" ]; then
+    echo "Error: GitHub account name is required. Use the -g flag to specify the account name."
+    exit 1
+fi
+
+export GITHUB_ACCOUNT="$GITHUB_ACCOUNT"
+
+if [ -z "$DEFAULT_REPO" ]; then
+    echo "Error: Default repository name is required. Use the -r flag to specify it."
+    exit 1
+fi
+
+if [ -z "$SECURITY_REPO" ]; then
+    echo "Error: Security repository name is required. Use the -s flag to specify it."
+    exit 1
+fi
+
+export DEFAULT_REPO="$DEFAULT_REPO"
+export SECURITY_REPO="$SECURITY_REPO"
+
+# Validate the MODE flag
+if [ "$MODE" != "simulation" ] && [ "$MODE" != "migration" ]; then
+    echo "Error: Invalid mode. Use -m simulation or -m migration."
+    exit 1
+fi
 
 # Display the selected mode
-echo "Mode: $MODE"
+echo "Selected Mode: $MODE"
 
 # Export the mode as an environment variable for use in main.py
 export MIGRATION_MODE="$MODE"
@@ -84,5 +109,5 @@ echo "Installing dependencies..."
 pip install -r requirements.txt
 
 # Run the Python migration script
-echo "Running migration script in simulation mode..."
+echo "Running migration script in $MODE mode..."
 python3 main.py
